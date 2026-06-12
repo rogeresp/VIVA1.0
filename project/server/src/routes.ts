@@ -3,6 +3,9 @@ import multer from 'multer';
 import fs from 'fs';
 import Groq from 'groq-sdk';
 import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 function camelToSnake(s: string): string {
   return s.replace(/[A-Z]/g, c => '_' + c.toLowerCase());
@@ -496,6 +499,33 @@ Retorne APENAS JSON: {"title":"...","description":"...","tags":["..."]}`
     try { ad = JSON.parse(content); } catch { ad = { title: 'Imóvel', description: content.slice(0, 500), tags: [] }; }
 
     res.json(ad);
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+// ===================== PHOTO UPLOAD =====================
+router.post('/upload-photos', upload.array('photos', 50), async (req: Request, res: Response) => {
+  try {
+    const code = req.body.code as string;
+    if (!code) { res.status(400).json({ error: 'Código do imóvel é obrigatório' }); return; }
+    if (!req.files || !Array.isArray(req.files) || req.files.length === 0) {
+      res.status(400).json({ error: 'Nenhuma foto enviada' }); return;
+    }
+
+    const fotosDir = path.resolve(__dirname, '../../../fotos', code);
+    if (!fs.existsSync(fotosDir)) fs.mkdirSync(fotosDir, { recursive: true });
+
+    const urls: string[] = [];
+    for (let i = 0; i < req.files.length; i++) {
+      const file = req.files[i] as Express.Multer.File;
+      const ext = path.extname(file.originalname) || '.jpg';
+      const filename = `foto_${String(i + 1).padStart(2, '0')}${ext}`;
+      const destPath = path.join(fotosDir, filename);
+      fs.copyFileSync(file.path, destPath);
+      try { fs.unlinkSync(file.path); } catch {}
+      urls.push(`/fotos/${code}/${filename}`);
+    }
+
+    res.json({ urls, total: urls.length, code });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
