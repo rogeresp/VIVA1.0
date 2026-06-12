@@ -59,9 +59,9 @@ export async function connect(forceFresh = false) {
   // Properly close existing socket before creating a new one
   if (sock) {
     try {
-      sock.removeAllListeners('connection.update');
-      sock.removeAllListeners('creds.update');
-      sock.removeAllListeners('messages.upsert');
+      (sock as any).removeAllListeners('connection.update');
+      (sock as any).removeAllListeners('creds.update');
+      (sock as any).removeAllListeners('messages.upsert');
       sock.end(new Error('Reconnecting'));
     } catch {}
     sock = null;

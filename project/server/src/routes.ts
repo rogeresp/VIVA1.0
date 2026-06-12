@@ -163,12 +163,12 @@ router.post('/owners', async (req: Request, res: Response) => {
 
 router.put('/owners/:id', async (req: Request, res: Response) => {
   const uid = requireUser(req, res); if (!uid) return;
-  try { res.json(await updateOwner(req.params.id, req.body)); } catch (err: any) { res.status(500).json({ error: err.message }); }
+  try { res.json(await updateOwner(req.params.id as string, req.body)); } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
 router.delete('/owners/:id', async (req: Request, res: Response) => {
   const uid = requireUser(req, res); if (!uid) return;
-  try { res.json(await deleteOwner(req.params.id)); } catch (err: any) { res.status(500).json({ error: err.message }); }
+  try { res.json(await deleteOwner(req.params.id as string)); } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
 // ===================== CLIENTS =====================
@@ -184,12 +184,12 @@ router.post('/clients', async (req: Request, res: Response) => {
 
 router.put('/clients/:id', async (req: Request, res: Response) => {
   const uid = requireUser(req, res); if (!uid) return;
-  try { res.json(await updateClient(req.params.id, req.body)); } catch (err: any) { res.status(500).json({ error: err.message }); }
+  try { res.json(await updateClient(req.params.id as string, req.body)); } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
 router.delete('/clients/:id', async (req: Request, res: Response) => {
   const uid = requireUser(req, res); if (!uid) return;
-  try { res.json(await deleteClient(req.params.id)); } catch (err: any) { res.status(500).json({ error: err.message }); }
+  try { res.json(await deleteClient(req.params.id as string)); } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
 // ===================== PROPERTIES =====================
@@ -221,12 +221,12 @@ router.post('/properties', async (req: Request, res: Response) => {
 
 router.put('/properties/:id', async (req: Request, res: Response) => {
   const uid = requireUser(req, res); if (!uid) return;
-  try { res.json(transformKeys(await updateProperty(req.params.id, transformKeysIn(req.body)))); } catch (err: any) { res.status(500).json({ error: err.message }); }
+  try { res.json(transformKeys(await updateProperty(req.params.id as string, transformKeysIn(req.body)))); } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
 router.delete('/properties/:id', async (req: Request, res: Response) => {
   const uid = requireUser(req, res); if (!uid) return;
-  try { res.json(await deleteProperty(req.params.id)); } catch (err: any) { res.status(500).json({ error: err.message }); }
+  try { res.json(await deleteProperty(req.params.id as string)); } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
 router.post('/properties/batch-import', async (req: Request, res: Response) => {
@@ -276,21 +276,21 @@ router.post('/exchanges', async (req: Request, res: Response) => {
 
 router.put('/exchanges/:id', async (req: Request, res: Response) => {
   const uid = requireUser(req, res); if (!uid) return;
-  try { res.json(await updateExchange(req.params.id, req.body)); } catch (err: any) { res.status(500).json({ error: err.message }); }
+  try { res.json(await updateExchange(req.params.id as string, req.body)); } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
 router.delete('/exchanges/:id', async (req: Request, res: Response) => {
   const uid = requireUser(req, res); if (!uid) return;
-  try { res.json(await deleteExchange(req.params.id)); } catch (err: any) { res.status(500).json({ error: err.message }); }
+  try { res.json(await deleteExchange(req.params.id as string)); } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
 // ===================== EXCHANGE MATCHES =====================
 router.get('/exchanges/:id/matches', async (req: Request, res: Response) => {
   try {
-    const matches = await findMatches(req.params.id);
+    const matches = await findMatches(req.params.id as string);
     // Save matches to DB
     for (const m of matches) {
-      await saveMatch(req.params.id, m.exchangeId, m.score);
+      await saveMatch(req.params.id as string, m.exchangeId, m.score);
     }
     res.json(matches);
   } catch (err: any) { res.status(500).json({ error: err.message }); }
@@ -332,7 +332,7 @@ router.post('/conversations', async (req: Request, res: Response) => {
 });
 
 router.get('/conversations/:id/messages', async (req: Request, res: Response) => {
-  try { res.json(transformKeys(await getMessages(req.params.id))); } catch (err: any) { res.status(500).json({ error: err.message }); }
+  try { res.json(transformKeys(await getMessages(req.params.id as string))); } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
 router.post('/conversations/:id/messages', async (req: Request, res: Response) => {
@@ -340,7 +340,7 @@ router.post('/conversations/:id/messages', async (req: Request, res: Response) =
   try {
     const { content } = req.body;
     if (!content) { res.status(400).json({ error: 'Conteúdo obrigatório' }); return; }
-    res.json(await sendChatMessage(req.params.id, uid, content));
+    res.json(await sendChatMessage(req.params.id as string, uid, content));
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
