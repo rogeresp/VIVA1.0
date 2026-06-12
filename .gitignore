@@ -1,0 +1,25 @@
+node_modules
+dist
+.env
+*.log
+logs
+__pycache__
+*.pyc
+.DS_Store
+
+# Photos / media
+fotos/
+broker-scraper/exportacao/fotos/
+project/server/uploads/
+
+# Large data files
+broker-scraper/exportacao/*.csv
+broker-scraper/exportacao/*.json
+data/
+
+# SQLite local DB
+project/server/prisma/dev.db
+project/server/prisma/dev.db.backup
+
+# WhatsApp auth
+project/server/wa_auth/

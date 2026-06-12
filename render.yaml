@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: kenixxxxx-api
+    runtime: node
+    repo: https://github.com/rogeresp/VIVA1.0
+    branch: main
+    rootDir: project
+    buildCommand: npm install && npm run build && cd server && npm install && npx prisma generate && npx prisma db push && npm run build
+    startCommand: NODE_ENV=production node server/dist/index.js
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: VITE_SUPABASE_URL
+        sync: false
+      - key: VITE_SUPABASE_ANON_KEY
+        sync: false
+      - key: NODE_VERSION
+        value: 22

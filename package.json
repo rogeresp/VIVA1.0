@@ -1,0 +1,17 @@
+{
+  "name": "kenixxxxx",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "adm-zip": "^0.5.17",
+    "playwright": "^1.60.0",
+    "tsx": "^4.22.4"
+  }
+}

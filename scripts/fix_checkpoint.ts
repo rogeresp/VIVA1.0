@@ -1,0 +1,11 @@
+import * as fs from 'fs';
+const cp = JSON.parse(fs.readFileSync('D:\\USER\\Downloads\\project-bolt-github-rzwmpwpp\\KENIXXXXX\\data\\checkpoint_correcao.json','utf-8'));
+const cache = JSON.parse(fs.readFileSync('D:\\USER\\Downloads\\project-bolt-github-rzwmpwpp\\KENIXXXXX\\data\\listing_cache.json','utf-8'));
+const cacheMap = new Map(cache);
+const j = JSON.parse(fs.readFileSync('D:\\USER\\Downloads\\project-bolt-github-rzwmpwpp\\KENIXXXXX\\data\\imoveis_exportados.json','utf-8'));
+const jsonRefs = new Set(j.map(i => i.referencia));
+const realPend = cp.pendentes.filter(ref => cacheMap.has(ref) && !jsonRefs.has(ref));
+cp.pendentes = realPend;
+cp.concluidos = cp.concluidos.filter(ref => jsonRefs.has(ref));
+fs.writeFileSync('D:\\USER\\Downloads\\project-bolt-github-rzwmpwpp\\KENIXXXXX\\data\\checkpoint_correcao.json', JSON.stringify(cp));
+console.log(`Checkpoint ajustado: ${cp.concluidos.length} concluidos, ${cp.pendentes.length} pendentes`);

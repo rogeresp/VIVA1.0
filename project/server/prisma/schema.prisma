@@ -1,0 +1,289 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Profile {
+  id         String    @id @default(uuid())
+  email      String    @unique
+  name       String
+  phone      String?
+  whatsapp   String?
+  region     String?
+  city       String?
+  state      String?
+  agency     String?
+  role       String    @default("corretor")
+  avatar_url String?
+  rating     Float     @default(0)
+  salesCount Int       @default(0)
+  specialties String?
+  createdAt  DateTime  @default(now())
+
+  properties    Property[]
+  clients       Client[]
+  owners        Owner[]
+  buildings     Building[]
+  exchanges     Exchange[]
+  feedPosts     FeedPost[]
+  aiTraining    AiTraining[]
+}
+
+model Owner {
+  id        String     @id @default(uuid())
+  name      String
+  phone     String?
+  whatsapp  String?
+  email     String?
+  city      String?
+  state     String?
+  cpf_cnpj  String?
+  notes     String?
+  userId    String
+  createdAt DateTime   @default(now())
+
+  user       Profile    @relation(fields: [userId], references: [id])
+  properties Property[]
+}
+
+model Client {
+  id                  String   @id @default(uuid())
+  name                String
+  phone               String?
+  whatsapp            String?
+  email               String?
+  city                String?
+  neighborhood        String?
+  budgetMin           Float?
+  budgetMax           Float?
+  desiredPropertyType String?
+  desiredCity         String?
+  desiredNeighborhood String?
+  bedrooms            Int?
+  suites              Int?
+  garage              Boolean?
+  seaView             Boolean?
+  acceptsReform       Boolean?
+  description         String?
+  paymentConditions   String?
+  profileType         String?
+  funil               String   @default("frio")
+  acceptsFinancing    Boolean  @default(false)
+  installments        String?
+  notes               String?
+  userId              String
+  createdAt           DateTime @default(now())
+
+  user Profile @relation(fields: [userId], references: [id])
+}
+
+model Property {
+  id                  String    @id @default(uuid())
+  code                String    @unique
+  reference           String?
+  propertyType        String
+  category            String    @default("venda")
+  status              String    @default("disponivel")
+  visibility          String    @default("privado")
+  country             String    @default("Brasil")
+  state               String?
+  city                String?
+  neighborhood        String?
+  street              String?
+  number              String?
+  complement          String?
+  unit                String?
+  quadra              String?
+  lote                String?
+  zip                 String?
+  privateArea         Float?
+  totalArea           Float?
+  bedrooms            Int?
+  suites              Int?
+  bathrooms           Int?
+  halfBath            Boolean   @default(false)
+  garages             Int?
+  floor               Int?
+  elevators           Int?
+  furnished           Boolean   @default(false)
+  decorated           Boolean   @default(false)
+  solarPosition       String?
+  seaView             Boolean   @default(false)
+  mountainView        Boolean   @default(false)
+  salePrice           Float?
+  rentPrice           Float?
+  condoFee            Float?
+  iptu                Float?
+  taxes               Float?
+  minAccepted         Float?
+  commission          Float?
+  description         String?
+  highlights          String?
+  internalNotes       String?
+  amenities           String?   // JSON array
+  photos              String?   // JSON array
+  videos              String?   // JSON array
+  tourVirtual         String?
+  documentation       String?   // JSON
+  keyLocation         String?
+  saleTerms           String?
+  acceptsFinancing    Boolean   @default(false)
+  installments        String?
+  acceptsExchange     Boolean   @default(false)
+  exchangePercent     Float?
+  exchangeSeeking     String?
+  exchangeNotAccepted String?
+  ownerId             String?
+  buildingId          String?
+  userId              String
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @default(now()) @updatedAt
+
+  owner    Owner?    @relation(fields: [ownerId], references: [id])
+  building Building? @relation(fields: [buildingId], references: [id])
+  user     Profile   @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([status])
+  @@index([visibility])
+}
+
+model Building {
+  id           String   @id @default(uuid())
+  name         String
+  street       String?
+  number       String?
+  address      String?
+  neighborhood String?
+  city         String?
+  state        String?
+  notes        String?
+  userId       String
+  createdAt    DateTime @default(now())
+
+  user       Profile    @relation(fields: [userId], references: [id])
+  properties Property[]
+}
+
+model Exchange {
+  id              String   @id @default(uuid())
+  assetType       String   // imovel, veiculo, maquina, material, terreno, etc.
+  assetName       String
+  description     String?
+  estimatedValue  Float?
+  visibility      String   @default("privado")
+  seeking         String?  // what they want in exchange
+  percentAccepted Float?
+  status          String   @default("active")
+  userId          String
+  createdAt       DateTime @default(now())
+
+  user         Profile          @relation(fields: [userId], references: [id])
+  matchesFrom  ExchangeMatch[]  @relation("ExchangeFrom")
+  matchesTo    ExchangeMatch[]  @relation("ExchangeTo")
+}
+
+model ExchangeMatch {
+  id          String   @id @default(uuid())
+  exchangeIdA String
+  exchangeIdB String
+  matchScore  Float    @default(0)
+  status      String   @default("pending") // pending, accepted, rejected, completed
+  createdAt   DateTime @default(now())
+
+  exchangeA Exchange @relation("ExchangeFrom", fields: [exchangeIdA], references: [id])
+  exchangeB Exchange @relation("ExchangeTo", fields: [exchangeIdB], references: [id])
+
+  @@unique([exchangeIdA, exchangeIdB])
+}
+
+model FeedPost {
+  id          String   @id @default(uuid())
+  content     String?
+  propertyId  String?
+  exchangeId  String?
+  mediaUrls   String?  // JSON array
+  likesCount  Int      @default(0)
+  commentsCount Int    @default(0)
+  userId      String
+  createdAt   DateTime @default(now())
+
+  user Profile @relation(fields: [userId], references: [id])
+}
+
+model Conversation {
+  id            String   @id @default(uuid())
+  participants  String   // JSON array of user IDs
+  lastMessage   String?
+  lastMessageAt DateTime?
+  createdAt     DateTime @default(now())
+
+  messages ChatMessage[]
+}
+
+model ChatMessage {
+  id             String   @id @default(uuid())
+  conversationId String
+  senderId       String
+  content        String
+  read           Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id])
+}
+
+model AiTraining {
+  id         String   @id @default(uuid())
+  userId     String   @unique
+  style      String?  // AI behavior style
+  niche      String?  // market niche
+  region     String?  // region of operation
+  preferences String? // JSON
+  history    String?  // JSON array of interactions
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user Profile @relation(fields: [userId], references: [id])
+}
+
+model AiAction {
+  id         String   @id @default(uuid())
+  userId     String
+  actionType String
+  input      String
+  result     String?
+  createdAt  DateTime @default(now())
+}
+
+model AutomationRule {
+  id          String   @id @default(uuid())
+  userId      String
+  trigger     String   // property_created, property_status_changed, client_created, client_funil_changed
+  action      String   // send_whatsapp
+  target      String   // owner, client
+  template    String   // message template
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model WhatsAppMessage {
+  id          String   @id @default(uuid())
+  userId      String
+  to          String   // phone number
+  content     String   // sent message
+  status      String   // sent, delivered, read, failed
+  trigger     String?  // what triggered this
+  referenceId String?  // property_id, client_id, etc
+  sentAt      DateTime @default(now())
+}
+
+model WhatsAppAuth {
+  id    String  @id @default(uuid())
+  key   String  @unique
+  value String
+}
