@@ -4,7 +4,6 @@
   "private": true,
   "scripts": {
     "build": "cd project && npm install && npm run build && cd server && npm install && npx prisma generate && npx prisma db push && npm run build",
-    "start": "NODE_ENV=production node project/server/dist/index.js",
-    "postinstall": "cd project && npm install && cd server && npm install && npx prisma generate"
+    "start": "NODE_ENV=production node project/server/dist/index.js"
   }
 }
