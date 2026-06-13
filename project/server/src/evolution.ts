@@ -105,7 +105,7 @@ export async function sendMessage(to: string, text: string) {
   const number = to.replace(/\D/g, '');
   const result = await apiFetch('POST', `/message/sendText/${INSTANCE_NAME}`, {
     number,
-    textMessage: { text },
+    text,
     delay: 0,
   });
   return result;
