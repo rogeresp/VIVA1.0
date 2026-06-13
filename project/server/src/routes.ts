@@ -755,6 +755,8 @@ router.post('/campaign/start', async (req: Request, res: Response) => {
     }
 
     if (target === 'clients') {
+      const hour = new Date().getHours();
+      const greet = hour >= 5 && hour < 12 ? 'Bom dia' : hour >= 12 && hour < 18 ? 'Boa tarde' : 'Boa noite';
       const clients = await prisma.client.findMany({
         where: { userId: uid, OR: [{ phone: { not: null } }, { whatsapp: { not: null } }] },
       });
@@ -764,6 +766,7 @@ router.post('/campaign/start', async (req: Request, res: Response) => {
           name: c.name,
           propertyId: c.id,
           vars: {
+            greeting: `${greet}, ${c.name.split(' ')[0] || c.name}`,
             client_name: c.name,
             client_phone: c.phone || c.whatsapp || '',
             client_city: c.city || '',
@@ -794,15 +797,20 @@ router.post('/campaign/start', async (req: Request, res: Response) => {
       },
     });
 
+    const hour = new Date().getHours();
+    const greeting = hour >= 5 && hour < 12 ? 'Bom dia' : hour >= 12 && hour < 18 ? 'Boa tarde' : 'Boa noite';
+
     const contacts = owners
       .filter(o => o.properties.length > 0)
       .map(o => {
         const p = o.properties[0];
+        const firstName = o.name.split(' ')[0] || o.name;
         return {
           phone: o.whatsapp || o.phone || '',
           name: o.name,
           propertyId: p.id,
           vars: {
+            greeting: `${greeting}, ${firstName}`,
             owner_name: o.name,
             property_code: p.code,
             property_type: p.propertyType,
@@ -953,6 +961,8 @@ Retorne APENAS o texto da mensagem, sem formatação adicional.`;
     }
 
     // Build contacts
+    const hour = new Date().getHours();
+    const aiGreeting = hour >= 5 && hour < 12 ? 'Bom dia' : hour >= 12 && hour < 18 ? 'Boa tarde' : 'Boa noite';
     let contactWhere: any = { userId: uid };
     if (target === 'properties') {
       contactWhere.OR = [{ phone: { not: null } }, { whatsapp: { not: null } }];
@@ -969,11 +979,13 @@ Retorne APENAS o texto da mensagem, sem formatação adicional.`;
         .filter(o => o.properties.length > 0)
         .map(o => {
           const p = o.properties[0];
+          const firstName = o.name.split(' ')[0] || o.name;
           return {
             phone: o.whatsapp || o.phone || '',
             name: o.name,
             propertyId: p.id,
             vars: {
+              greeting: `${aiGreeting}, ${firstName}`,
               owner_name: o.name,
               property_code: p.code,
               property_type: p.propertyType,
@@ -1006,6 +1018,7 @@ Retorne APENAS o texto da mensagem, sem formatação adicional.`;
           name: c.name,
           propertyId: c.id,
           vars: {
+            greeting: `${aiGreeting}, ${c.name.split(' ')[0] || c.name}`,
             client_name: c.name,
             client_phone: c.phone || c.whatsapp || '',
             client_city: c.city || '',

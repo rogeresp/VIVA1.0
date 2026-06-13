@@ -166,6 +166,13 @@ function normalizePhone(phone: string): string {
   return digits;
 }
 
+function getGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour >= 5 && hour < 12) return 'Bom dia';
+  if (hour >= 12 && hour < 18) return 'Boa tarde';
+  return 'Boa noite';
+}
+
 export async function sendMessage(to: string, text: string) {
   if (!sock || connectionStatus !== 'connected') throw new Error('WhatsApp não conectado');
 
@@ -345,51 +352,64 @@ export async function startVariedCampaign(
   startCampaignLoop();
 }
 
+async function campaignTick() {
+  if (!campaign || !campaign.active || !sock || connectionStatus !== 'connected') {
+    scheduleNextTick();
+    return;
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+  if (campaign.date !== today) {
+    campaign.sentToday = 0;
+    campaign.date = today;
+  }
+
+  if (campaign.sentToday >= campaign.dailyLimit) { scheduleNextTick(); return; }
+  if (campaign.totalSent >= campaign.contacts.length) {
+    campaign.active = false;
+    stopCampaign();
+    return;
+  }
+
+  const nextContact = campaign.contacts[campaign.totalSent];
+  if (!nextContact) {
+    campaign.active = false;
+    stopCampaign();
+    return;
+  }
+
+  try {
+    const msg = campaign.varied ? generateVariedMessage(nextContact.vars) : applyTemplate(campaign.template, nextContact.vars);
+    const result = await sendMessage(nextContact.phone, msg);
+    campaignLog(`send OK to ${nextContact.phone}: ${JSON.stringify(result)}`);
+    await prisma.whatsAppMessage.create({
+      data: {
+        userId: campaign.userId,
+        to: nextContact.phone,
+        content: msg,
+        status: 'sent',
+        trigger: 'campaign',
+        referenceId: nextContact.propertyId,
+      },
+    });
+    campaign.sentToday++;
+    campaign.totalSent++;
+  } catch (e: any) {
+    campaignLog(`send ERROR to ${nextContact.phone}: ${e?.message || e}`);
+    campaign.totalSent++;
+  }
+  scheduleNextTick();
+}
+
+function scheduleNextTick() {
+  if (campaignInterval) clearTimeout(campaignInterval);
+  if (!campaign || !campaign.active) return;
+  campaignInterval = setTimeout(campaignTick, randomDelay(3000, 7000));
+}
+
 function startCampaignLoop() {
   stopCampaign();
-  campaignInterval = setInterval(async () => {
-    if (!campaign || !campaign.active || !sock || connectionStatus !== 'connected') return;
-
-    const today = new Date().toISOString().slice(0, 10);
-    if (campaign.date !== today) {
-      campaign.sentToday = 0;
-      campaign.date = today;
-    }
-
-    if (campaign.sentToday >= campaign.dailyLimit) return;
-    if (campaign.totalSent >= campaign.contacts.length) {
-      campaign.active = false;
-      stopCampaign();
-      return;
-    }
-
-    const nextContact = campaign.contacts[campaign.totalSent];
-    if (!nextContact) {
-      campaign.active = false;
-      stopCampaign();
-      return;
-    }
-
-    try {
-      const msg = campaign.varied ? generateVariedMessage(nextContact.vars) : applyTemplate(campaign.template, nextContact.vars);
-      const result = await sendMessage(nextContact.phone, msg);
-      campaignLog(`send OK to ${nextContact.phone}: ${JSON.stringify(result)}`);
-      await prisma.whatsAppMessage.create({
-        data: {
-          userId: campaign.userId,
-          to: nextContact.phone,
-          content: msg,
-          status: 'sent',
-          trigger: 'campaign',
-          referenceId: nextContact.propertyId,
-        },
-      });
-      campaign.sentToday++;
-      campaign.totalSent++;
-    } catch (e: any) {
-      campaignLog(`send ERROR to ${nextContact.phone}: ${e?.message || e}`);
-    }
-  }, randomDelay(3000, 7000));
+  scheduleNextTick();
 }
 
 export function stopCampaignManually() {

@@ -175,6 +175,7 @@ export default function Automation() {
   const [liveMessages, setLiveMessages] = useState<any[]>([]);
   const [typingContact, setTypingContact] = useState<string | null>(null);
   const liveEndRef = useRef<HTMLDivElement>(null);
+  const liveContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     checkStatus();
@@ -208,7 +209,9 @@ export default function Automation() {
 
   // Auto scroll on new messages
   useEffect(() => {
-    if (liveEndRef.current) liveEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    if (liveContainerRef.current) {
+      liveContainerRef.current.scrollTop = liveContainerRef.current.scrollHeight;
+    }
   }, [liveMessages]);
 
   // Simulate typing before each new message
@@ -959,7 +962,7 @@ export default function Automation() {
                         <span className="text-xs font-medium text-primary">Enviando mensagens...</span>
                         <span className="text-[10px] text-muted ml-auto">{liveMessages.length} mensagens</span>
                       </div>
-                      <div className="h-64 overflow-y-auto p-3 space-y-2 bg-[#0a0f0a]">
+                      <div ref={liveContainerRef} className="h-64 overflow-y-auto p-3 space-y-2 bg-[#0a0f0a]">
                         {typingContact && (
                           <div className="flex items-start gap-2 animate-fadeIn">
                             <div className="w-6 h-6 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
@@ -1020,9 +1023,66 @@ export default function Automation() {
                 </div>
               ) : (
                 <div className="space-y-4">
+                  {/* Target selector */}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => { setCampaignTarget('properties'); setCampaignSelectedTmpl(''); setCampaignTemplate(''); }}
+                      className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all ${campaignTarget === 'properties' ? 'bg-viva-500/20 text-viva-400 border border-viva-500/30' : 'bg-white/[0.04] text-muted hover:text-secondary'}`}
+                    >
+                      Proprietários
+                    </button>
+                    <button
+                      onClick={() => { setCampaignTarget('clients'); setCampaignSelectedTmpl(''); setCampaignTemplate(''); }}
+                      className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all ${campaignTarget === 'clients' ? 'bg-viva-500/20 text-viva-400 border border-viva-500/30' : 'bg-white/[0.04] text-muted hover:text-secondary'}`}
+                    >
+                      Clientes
+                    </button>
+                  </div>
+
+                  {/* Template selector */}
                   <div>
-                    <label className="text-xs text-muted mb-1 block">Limite diário (recomendado: 20-30)</label>
-                    <input type="number" value={campaignDailyLimit} onChange={e => setCampaignDailyLimit(Number(e.target.value))} min={1} max={50} className="input w-32" />
+                    <label className="text-xs text-muted mb-2 block">Modelo de mensagem</label>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {CAMPAIGN_TEMPLATES[campaignTarget].map(t => (
+                        <button
+                          key={t.id}
+                          onClick={() => selectCampaignTemplate(t.id)}
+                          className={`text-left px-3 py-2 rounded-lg text-xs transition-all ${campaignSelectedTmpl === t.id ? 'bg-viva-500/20 text-viva-400 border border-viva-500/30' : 'bg-white/[0.04] text-muted hover:text-secondary border border-transparent'}`}
+                        >
+                          {t.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Template text area */}
+                  <div>
+                    <label className="text-xs text-muted mb-1 block">
+                      Mensagem {'{use {{greeting}}, {{owner_name}}, {{property_code}}, {{property_building}}, {{property_neighborhood}}, {{property_price}} etc}'}
+                    </label>
+                    <textarea
+                      value={campaignTemplate}
+                      onChange={e => { setCampaignTemplate(e.target.value); setCampaignSelectedTmpl(''); }}
+                      rows={5}
+                      className="input w-full text-xs font-mono resize-none"
+                      placeholder="Digite a mensagem com {{variaveis}}..."
+                    />
+                  </div>
+
+                  {/* Daily limit + start */}
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1">
+                      <label className="text-xs text-muted mb-1 block">Limite diário (recomendado: 20-30)</label>
+                      <input type="number" value={campaignDailyLimit} onChange={e => setCampaignDailyLimit(Number(e.target.value))} min={1} max={50} className="input w-32" />
+                    </div>
+                    <button
+                      onClick={startCampaign}
+                      disabled={sending || !campaignTemplate}
+                      className="btn-primary gap-2 disabled:opacity-50"
+                    >
+                      <Send className="w-4 h-4" />
+                      {sending ? 'Iniciando...' : 'Iniciar Campanha'}
+                    </button>
                   </div>
                 </div>
               )}
