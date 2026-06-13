@@ -599,7 +599,7 @@ router.post('/whatsapp/connect', async (_req: Request, res: Response) => {
       await new Promise(r => setTimeout(r, 1000));
       const qrText = getCurrentQr();
       if (qrText) {
-        const qrImage = await QRCode.toDataURL(qrText);
+        const qrImage = await QRCode.toDataURL(qrText, { errorCorrectionLevel: 'L', version: 10 });
         res.json({ status: 'connecting', qr: qrImage.replace('data:image/png;base64,', '') });
         return;
       }
@@ -622,7 +622,7 @@ router.get('/whatsapp/qr', async (_req: Request, res: Response) => {
       res.json({ qr: null });
       return;
     }
-    const qrImage = await QRCode.toDataURL(qrText);
+    const qrImage = await QRCode.toDataURL(qrText, { errorCorrectionLevel: 'L', version: 10 });
     res.json({ qr: qrImage.replace('data:image/png;base64,', '') });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
