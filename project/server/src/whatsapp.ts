@@ -19,6 +19,7 @@ function campaignLog(msg: string) {
 let sock: ReturnType<typeof makeWASocket> | null = null;
 let connectionStatus: 'disconnected' | 'connecting' | 'connected' = 'disconnected';
 let currentQr: string | null = null;
+let suppressReconnect = false;
 
 // Campaign state
 interface CampaignJob {
@@ -58,7 +59,7 @@ export function onQr(cb: (qr: string) => void) {
 
 const processedMessages = new Set<string>();
 
-export async function connect(forceFresh = false) {
+export async function connect(forceFresh = false, phoneNumber?: string) {
   if (USE_EVOLUTION) return evolution.connect(forceFresh);
   ensureDir();
 
@@ -89,6 +90,7 @@ export async function connect(forceFresh = false) {
     printQRInTerminal: false,
     syncFullHistory: false,
     browser: ['NEXIV CRM', 'Chrome', '120.0.0'],
+    ...(phoneNumber ? { pairingPhoneNumber: phoneNumber } : {}),
   });
 
   sock.ev.on('creds.update', saveCreds);
@@ -105,7 +107,7 @@ export async function connect(forceFresh = false) {
       connectionStatus = 'disconnected';
       currentQr = null;
       sock = null;
-      if (shouldReconnect) {
+      if (shouldReconnect && !suppressReconnect) {
         setTimeout(connect, 5000);
       }
     } else if (connection === 'open') {
@@ -153,12 +155,35 @@ export async function disconnect() {
   if (USE_EVOLUTION) return evolution.disconnect();
   stopCampaign();
   if (sock) {
+    suppressReconnect = true;
     sock.end(new Error('Manually disconnected'));
     sock = null;
+    // Reset after close event has fired
+    await new Promise(r => setTimeout(r, 0));
+    suppressReconnect = false;
   }
   connectionStatus = 'disconnected';
   currentQr = null;
   QR_CALLBACKS.length = 0;
+}
+
+export async function requestPairCode(phone: string): Promise<string> {
+  if (USE_EVOLUTION) throw new Error('Pairing code not available with Evolution API');
+
+  suppressReconnect = true;
+  await disconnect();
+  suppressReconnect = false;
+  await connect(true, phone);
+
+  // Wait up to 30s for the pairing code
+  for (let i = 0; i < 30; i++) {
+    await sleep(1000);
+    if (currentQr) return currentQr;
+    const status = connectionStatus;
+    if (status === 'connected') throw new Error('Already connected');
+    if (status === 'disconnected') break;
+  }
+  throw new Error('Timeout waiting for pairing code');
 }
 
 function sleep(ms: number) {

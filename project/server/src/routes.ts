@@ -65,7 +65,7 @@ import {
 import {
   connect as waConnect, disconnect as waDisconnect, getStatus as waStatus,
   onQr, sendTemplated, applyTemplate, executeRule, sendMessage as waSendMessage, getCurrentQr,
-  startCampaign, startVariedCampaign, getCampaignStatus, stopCampaignManually,
+  requestPairCode, startCampaign, startVariedCampaign, getCampaignStatus, stopCampaignManually,
 } from './whatsapp.js';
 import QRCode from 'qrcode';
 
@@ -648,6 +648,17 @@ router.post('/whatsapp/disconnect', async (_req: Request, res: Response) => {
   try {
     await waDisconnect();
     res.json({ success: true, status: 'disconnected' });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/whatsapp/pair', async (req: Request, res: Response) => {
+  try {
+    const { phone } = req.body;
+    if (!phone) { res.status(400).json({ error: 'Número de telefone obrigatório' }); return; }
+    const code = await requestPairCode(phone);
+    res.json({ code });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

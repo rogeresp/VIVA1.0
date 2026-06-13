@@ -148,6 +148,8 @@ export default function Automation() {
   const navigate = useNavigate();
   const [waStatus, setWaStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
   const [qrCode, setQrCode] = useState<string | null>(null);
+  const [pairingCode, setPairingCode] = useState<string | null>(null);
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [rules, setRules] = useState<Rule[]>([]);
   const [messages, setMessages] = useState<WaMessage[]>([]);
   const [replies, setReplies] = useState<WaMessage[]>([]);
@@ -242,6 +244,7 @@ export default function Automation() {
   async function connect() {
     setWaStatus('connecting');
     setQrCode(null);
+    setPairingCode(null);
     try {
       const res = await apiFetch(`/whatsapp/connect`, { method: 'POST' });
       const data = await res.json();
@@ -260,6 +263,28 @@ export default function Automation() {
         }, 2000);
         setTimeout(() => clearInterval(interval), 120000);
       }
+    } catch { setWaStatus('disconnected'); }
+  }
+
+  async function requestPair() {
+    if (!phoneNumber) { alert('Digite seu número do WhatsApp'); return; }
+    setWaStatus('connecting');
+    setQrCode(null);
+    setPairingCode(null);
+    try {
+      const res = await apiFetch(`/whatsapp/pair`, { method: 'POST', body: { phone: phoneNumber } });
+      const data = await res.json();
+      if (data.code) setPairingCode(data.code);
+      const interval = setInterval(async () => {
+        const r = await apiFetch(`/whatsapp/status`);
+        const s = await r.json();
+        if (s.status === 'connected') {
+          setWaStatus('connected');
+          setPairingCode(null);
+          clearInterval(interval);
+        }
+      }, 2000);
+      setTimeout(() => clearInterval(interval), 120000);
     } catch { setWaStatus('disconnected'); }
   }
 
@@ -593,10 +618,24 @@ export default function Automation() {
               </div>
 
               {waStatus === 'disconnected' && (
-                <button onClick={connect} className="btn-primary w-full justify-center gap-2 rounded-xl">
-                  <QrCode className="w-4 h-4" />
-                  Conectar WhatsApp
-                </button>
+                <>
+                  <button onClick={connect} className="btn-primary w-full justify-center gap-2 rounded-xl">
+                    <QrCode className="w-4 h-4" />
+                    Conectar com QR Code
+                  </button>
+                  <div className="flex gap-2 mt-2">
+                    <input
+                      type="text" value={phoneNumber}
+                      onChange={e => setPhoneNumber(e.target.value)}
+                      className="flex-1 px-3 py-2 text-sm bg-card border border-border rounded-xl"
+                      placeholder="Seu número (ex: 5511999999999)"
+                    />
+                    <button onClick={requestPair} className="btn-secondary rounded-xl text-sm px-3 gap-2 justify-center">
+                      <Smartphone className="w-4 h-4" />
+                      Código
+                    </button>
+                  </div>
+                </>
               )}
 
               {qrCode && (
@@ -621,7 +660,32 @@ export default function Automation() {
                 </div>
               )}
 
-              {!qrCode && waStatus === 'connected' && (
+              {pairingCode && (
+                <div className="mt-4 text-center">
+                  <p className="text-sm text-secondary mb-3">
+                    Digite o código abaixo no seu WhatsApp:
+                  </p>
+                  <p className="text-xs text-muted mb-2">
+                    WhatsApp {'>'} Dispositivos Conectados {'>'} Conectar dispositivo
+                  </p>
+                  <div className="inline-block px-6 py-4 bg-card border border-border rounded-xl">
+                    <span className="text-2xl font-mono font-bold tracking-widest text-primary">{pairingCode}</span>
+                  </div>
+                  <div className="flex gap-2 mt-3">
+                    <button onClick={requestPair} className="btn-ghost flex-1 justify-center gap-2 rounded-xl">
+                      <RefreshCw className="w-4 h-4" />
+                      Gerar novo código
+                    </button>
+                    <button onClick={async () => { await apiFetch(`/whatsapp/disconnect`, { method: 'POST' }); checkStatus(); }}
+                      className="btn-ghost flex-1 justify-center gap-2 rounded-xl text-red-400 hover:text-red-300">
+                      <WifiOff className="w-4 h-4" />
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {!qrCode && !pairingCode && waStatus === 'connected' && (
                 <>
                   <div className="flex gap-2 mt-4">
                     <input
@@ -645,7 +709,7 @@ export default function Automation() {
                   </button>
                 </>
               )}
-              {!qrCode && waStatus === 'connecting' && (
+              {!qrCode && !pairingCode && waStatus === 'connecting' && (
                 <button onClick={async () => { await apiFetch(`/whatsapp/disconnect`, { method: 'POST' }); checkStatus(); }} 
                   className="btn-ghost w-full justify-center gap-2 rounded-xl text-red-400 hover:text-red-300">
                   <WifiOff className="w-4 h-4" />
