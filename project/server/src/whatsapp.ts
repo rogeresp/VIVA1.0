@@ -178,15 +178,7 @@ export async function sendMessage(to: string, text: string) {
 
   const jid = `${normalizePhone(to)}@s.whatsapp.net`;
 
-  await sock.presenceSubscribe(jid);
-  await sleep(1000);
-
-  await sock.sendPresenceUpdate('composing', jid);
-  await sleep(randomDelay(2000, 4000));
-
   const result = await sock.sendMessage(jid, { text });
-
-  await sock.sendPresenceUpdate('paused', jid);
 
   return result;
 }
