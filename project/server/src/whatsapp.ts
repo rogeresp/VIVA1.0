@@ -59,7 +59,7 @@ export function onQr(cb: (qr: string) => void) {
 
 const processedMessages = new Set<string>();
 
-export async function connect(forceFresh = false, phoneNumber?: string) {
+export async function connect(forceFresh = false) {
   if (USE_EVOLUTION) return evolution.connect(forceFresh);
   ensureDir();
 
@@ -90,7 +90,6 @@ export async function connect(forceFresh = false, phoneNumber?: string) {
     printQRInTerminal: false,
     syncFullHistory: false,
     browser: ['NEXIV CRM', 'Chrome', '120.0.0'],
-    ...(phoneNumber ? { pairingPhoneNumber: phoneNumber } : {}),
   });
 
   sock.ev.on('creds.update', saveCreds);
@@ -173,15 +172,22 @@ export async function requestPairCode(phone: string): Promise<string> {
   suppressReconnect = true;
   await disconnect();
   suppressReconnect = false;
-  await connect(true, phone);
+  await connect(true);
 
-  // Wait up to 30s for the pairing code
-  for (let i = 0; i < 30; i++) {
-    await sleep(1000);
-    if (currentQr) return currentQr;
-    const status = connectionStatus;
-    if (status === 'connected') throw new Error('Already connected');
-    if (status === 'disconnected') break;
+  // Wait for the socket to be ready then call requestPairingCode
+  for (let i = 0; i < 15; i++) {
+    await sleep(2000);
+    if (!sock) continue;
+
+    try {
+      const code = await (sock as any).requestPairingCode(phone);
+      const formattedCode = code.match(/.{1,4}/g)?.join('-') || code;
+      currentQr = formattedCode;
+      return formattedCode;
+    } catch (e: any) {
+      // Socket not ready yet, keep waiting
+      continue;
+    }
   }
   throw new Error('Timeout waiting for pairing code');
 }
