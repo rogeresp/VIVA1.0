@@ -116,8 +116,14 @@ export async function connect(forceFresh = false) {
     for (const msg of messages) {
       const fromMe = msg.key?.fromMe;
       const jid = msg.key?.remoteJid;
+      const msgId = msg.key?.id;
       if (fromMe) {
-        campaignLog(`messages.upsert fromMe=true jid=${jid} id=${msg.key?.id}`);
+        const st = msg.status;
+        const statusLabel = st === 1 ? 'SERVER_ACK' : st === 2 ? 'DEVICE_ACK' : st === 3 ? 'READ' : 'PENDING';
+        campaignLog(`sent msg id=${msgId} status=${statusLabel} jid=${jid}`);
+        if (st === 1 || st === 2 || st === 3) {
+          try { await prisma.whatsAppMessage.updateMany({ where: { id: msgId }, data: { status: statusLabel.toLowerCase() } }); } catch {}
+        }
         continue;
       }
       if (msg.key.remoteJid?.includes('@g.us')) continue; // ignore groups
