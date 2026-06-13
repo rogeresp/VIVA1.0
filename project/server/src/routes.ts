@@ -585,9 +585,17 @@ router.get('/whatsapp/status', async (_req: Request, res: Response) => {
 
 router.post('/whatsapp/connect', async (_req: Request, res: Response) => {
   try {
-    // Force fresh = delete old auth state so we always get a new QR
-    waConnect(true);
-    // Wait for QR code to be generated
+    // Check if already connected
+    const currentStatus = waStatus();
+    if (currentStatus.status === 'connected') {
+      res.json({ status: 'connected', qr: null });
+      return;
+    }
+
+    // Try without forceFresh first
+    await waConnect(false);
+
+    // Wait for QR code
     for (let i = 0; i < 30; i++) {
       await new Promise(r => setTimeout(r, 1000));
       const qrText = getCurrentQr();
@@ -602,6 +610,24 @@ router.post('/whatsapp/connect', async (_req: Request, res: Response) => {
         return;
       }
     }
+
+    // If no QR after 30s, try force fresh
+    await waConnect(true);
+    for (let i = 0; i < 30; i++) {
+      await new Promise(r => setTimeout(r, 1000));
+      const qrText = getCurrentQr();
+      if (qrText) {
+        const qrImage = await QRCode.toDataURL(qrText);
+        res.json({ status: 'connecting', qr: qrImage.replace('data:image/png;base64,', '') });
+        return;
+      }
+      const s = waStatus();
+      if (s.status === 'connected') {
+        res.json({ status: 'connected', qr: null });
+        return;
+      }
+    }
+
     res.json({ status: waStatus().status, qr: null });
   } catch (err: any) {
     res.status(500).json({ error: err.message });

@@ -40,11 +40,15 @@ async function apiFetch(method: string, endpoint: string, body?: any, timeoutMs 
   }
 }
 
+let pollFailCount = 0;
+
 function startPolling() {
   stopPolling();
+  pollFailCount = 0;
   pollTimer = setInterval(async () => {
     try {
-      const res = await apiFetch('GET', `/instance/connectionState/${INSTANCE_NAME}`, undefined, 10000);
+      const res = await apiFetch('GET', `/instance/connectionState/${INSTANCE_NAME}`, undefined, 30000);
+      pollFailCount = 0;
       const state = res?.instance?.state || res?.state || 'unknown';
       if (state === 'open') {
         if (connectionStatus !== 'connected') {
@@ -59,7 +63,10 @@ function startPolling() {
         connectionStatus = 'disconnected';
       }
     } catch {
-      connectionStatus = 'disconnected';
+      pollFailCount++;
+      if (pollFailCount >= 3) {
+        connectionStatus = 'disconnected';
+      }
     }
   }, 3000);
 }
@@ -69,12 +76,23 @@ function stopPolling() {
 }
 
 export async function connect(forceFresh = false) {
+  // Check if already connected
+  try {
+    const inst = await apiFetch('GET', `/instance/connectionState/${INSTANCE_NAME}`, undefined, 10000);
+    if (inst?.instance?.state === 'open') {
+      connectionStatus = 'connected';
+      currentQr = null;
+      startPolling();
+      return;
+    }
+  } catch {}
+
   connectionStatus = 'connecting';
   currentQr = null;
 
   try {
     if (forceFresh) {
-      try { await apiFetch('DELETE', `/instance/delete/${INSTANCE_NAME}`); } catch {}
+      try { await apiFetch('DELETE', `/instance/delete/${INSTANCE_NAME}`, undefined, 10000); } catch {}
     }
 
     try {
@@ -88,9 +106,9 @@ export async function connect(forceFresh = false) {
       if (!e.message?.includes('409') && !e.message?.includes('already exists')) throw e;
     }
 
-    // Try connect
+    // Try connect to get QR
     try {
-      const connectResult = await apiFetch('GET', `/instance/connect/${INSTANCE_NAME}`);
+      const connectResult = await apiFetch('GET', `/instance/connect/${INSTANCE_NAME}`, undefined, 15000);
       if (connectResult?.base64) {
         currentQr = connectResult.base64;
         QR_CALLBACKS.forEach(cb => cb(connectResult.base64));
