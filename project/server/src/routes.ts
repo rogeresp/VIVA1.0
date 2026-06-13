@@ -637,11 +637,26 @@ router.post('/whatsapp/test-send', async (req: Request, res: Response) => {
   try {
     const { to } = req.body;
     if (!to) { res.status(400).json({ error: 'Número obrigatório' }); return; }
+    const start = Date.now();
     const result = await waSendMessage(to, '🔧 Teste do sistema NEXIV - mensagem enviada com sucesso!');
-    res.json({ success: true, result });
+    res.json({ success: true, result, elapsed: Date.now() - start, jid: `${to.replace(/\D/g,'')}@s.whatsapp.net` });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
+});
+
+router.get('/debug/wa-info', async (_req: Request, res: Response) => {
+  try {
+    const fs = await import('fs');
+    const { fileURLToPath } = await import('url');
+    const path = await import('path');
+    const __dirname = path.dirname(fileURLToPath(import.meta.url));
+    const logPath = path.join(__dirname, '..', 'campaign.log');
+    let log = '';
+    try { log = fs.readFileSync(logPath, 'utf8').split('\n').slice(-50).join('\n'); } catch {}
+    const st = waStatus();
+    res.json({ status: st, log: log || '(empty)' });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
 router.post('/whatsapp/disconnect', async (_req: Request, res: Response) => {
