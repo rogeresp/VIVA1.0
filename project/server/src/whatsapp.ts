@@ -5,10 +5,12 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { prisma } from './db.js';
 import { handleIncomingMessage } from './whatsapp-ai.js';
+import * as evolution from './evolution.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const AUTH_DIR = path.join(__dirname, '..', 'wa_auth');
 const QR_CALLBACKS: ((qr: string) => void)[] = [];
+const USE_EVOLUTION = !!process.env.EVOLUTION_URL;
 function campaignLog(msg: string) {
   const line = `[${new Date().toISOString()}] ${msg}\n`;
   fs.appendFileSync(path.join(__dirname, '..', 'campaign.log'), line, 'utf8');
@@ -39,14 +41,17 @@ function ensureDir() {
 }
 
 export function getStatus() {
+  if (USE_EVOLUTION) return evolution.getStatus();
   return { status: connectionStatus, hasQr: currentQr !== null };
 }
 
 export function getCurrentQr() {
+  if (USE_EVOLUTION) return evolution.getCurrentQr();
   return currentQr;
 }
 
 export function onQr(cb: (qr: string) => void) {
+  if (USE_EVOLUTION) return evolution.onQr(cb);
   QR_CALLBACKS.push(cb);
   return () => { const i = QR_CALLBACKS.indexOf(cb); if (i >= 0) QR_CALLBACKS.splice(i, 1); };
 }
@@ -54,6 +59,7 @@ export function onQr(cb: (qr: string) => void) {
 const processedMessages = new Set<string>();
 
 export async function connect(forceFresh = false) {
+  if (USE_EVOLUTION) return evolution.connect(forceFresh);
   ensureDir();
 
   // Properly close existing socket before creating a new one
@@ -144,6 +150,7 @@ export async function connect(forceFresh = false) {
 }
 
 export async function disconnect() {
+  if (USE_EVOLUTION) return evolution.disconnect();
   stopCampaign();
   if (sock) {
     sock.end(new Error('Manually disconnected'));
@@ -177,6 +184,9 @@ function getGreeting(): string {
 }
 
 export async function sendMessage(to: string, text: string) {
+  if (USE_EVOLUTION) {
+    return evolution.sendMessage(to, text);
+  }
   if (!sock || connectionStatus !== 'connected') throw new Error('WhatsApp não conectado');
 
   const jid = `${normalizePhone(to)}@s.whatsapp.net`;
@@ -459,8 +469,8 @@ export async function executeRule(ruleId: string, vars: Record<string, any>) {
   await sleep(randomDelay(3000, 7000));
 }
 
-// Auto-connect on startup if auth state exists
+// Auto-connect on startup if auth state exists (or always for Evolution)
 ensureDir();
-if (fs.existsSync(path.join(AUTH_DIR, 'creds.json'))) {
+if (USE_EVOLUTION || fs.existsSync(path.join(AUTH_DIR, 'creds.json'))) {
   connect().catch(() => {});
 }
