@@ -599,8 +599,12 @@ router.post('/whatsapp/connect', async (_req: Request, res: Response) => {
       await new Promise(r => setTimeout(r, 1000));
       const qrText = getCurrentQr();
       if (qrText) {
-        const qrImage = await QRCode.toDataURL(qrText, { errorCorrectionLevel: 'L', version: 10 });
-        res.json({ status: 'connecting', qr: qrImage.replace('data:image/png;base64,', '') });
+        try {
+          const qrImage = await QRCode.toDataURL(qrText, { errorCorrectionLevel: 'L', version: 40 });
+          res.json({ status: 'connecting', qr: qrImage.replace('data:image/png;base64,', '') });
+        } catch {
+          res.json({ status: 'connecting', qr: qrText });
+        }
         return;
       }
       const s = waStatus();
@@ -622,7 +626,7 @@ router.get('/whatsapp/qr', async (_req: Request, res: Response) => {
       res.json({ qr: null });
       return;
     }
-    const qrImage = await QRCode.toDataURL(qrText, { errorCorrectionLevel: 'L', version: 10 });
+    const qrImage = await QRCode.toDataURL(qrText, { errorCorrectionLevel: 'L', version: 40 });
     res.json({ qr: qrImage.replace('data:image/png;base64,', '') });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -643,7 +647,7 @@ router.post('/whatsapp/test-send', async (req: Request, res: Response) => {
 router.post('/whatsapp/disconnect', async (_req: Request, res: Response) => {
   try {
     await waDisconnect();
-    res.json({ status: 'disconnected' });
+    res.json({ success: true, status: 'disconnected' });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
