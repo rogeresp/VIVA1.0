@@ -76,12 +76,17 @@ function stopPolling() {
 }
 
 export async function connect(forceFresh = false) {
-  // Check if already connected
+  // Check current state
   try {
     const inst = await apiFetch('GET', `/instance/connectionState/${INSTANCE_NAME}`, undefined, 10000);
     if (inst?.instance?.state === 'open') {
       connectionStatus = 'connected';
       currentQr = null;
+      startPolling();
+      return;
+    }
+    if (inst?.instance?.state === 'connecting' && !forceFresh) {
+      connectionStatus = 'connecting';
       startPolling();
       return;
     }
