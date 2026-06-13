@@ -17,35 +17,43 @@ function log(msg: string) {
   fs.appendFileSync(path.join(__dirname, '..', 'campaign.log'), line, 'utf8');
 }
 
-async function apiFetch(method: string, endpoint: string, body?: any) {
+async function apiFetch(method: string, endpoint: string, body?: any, timeoutMs = 60000) {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (EVOLUTION_API_KEY) headers['apikey'] = EVOLUTION_API_KEY;
-  const res = await fetch(`${EVOLUTION_URL}${endpoint}`, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Evolution ${res.status}: ${text.slice(0, 200)}`);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(`${EVOLUTION_URL}${endpoint}`, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`Evolution ${res.status}: ${text.slice(0, 200)}`);
+    }
+    const ct = res.headers.get('content-type') || '';
+    return ct.includes('application/json') ? res.json() : res.text();
+  } finally {
+    clearTimeout(timer);
   }
-  const ct = res.headers.get('content-type') || '';
-  return ct.includes('application/json') ? res.json() : res.text();
 }
 
 function startPolling() {
   stopPolling();
   pollTimer = setInterval(async () => {
     try {
-      const state = await apiFetch('GET', `/instance/connectionState/${INSTANCE_NAME}`);
-      if (state?.state === 'open') {
+      const res = await apiFetch('GET', `/instance/connectionState/${INSTANCE_NAME}`, undefined, 10000);
+      const state = res?.instance?.state || res?.state || 'unknown';
+      if (state === 'open') {
         if (connectionStatus !== 'connected') {
           connectionStatus = 'connected';
           currentQr = null;
           QR_CALLBACKS.forEach(cb => cb(''));
           log('Connected');
         }
-      } else if (state?.state === 'connecting') {
+      } else if (state === 'connecting') {
         connectionStatus = 'connecting';
       } else {
         connectionStatus = 'disconnected';
@@ -72,11 +80,10 @@ export async function connect(forceFresh = false) {
     try {
       await apiFetch('POST', '/instance/create', {
         instanceName: INSTANCE_NAME,
-        qrcode: true,
         integration: 'WHATSAPP-BAILEYS',
-        websocket: false,
-        webhook: { enabled: false },
-      });
+        qrcode: true,
+        syncFullHistory: false,
+      }, 30000);
     } catch (e: any) {
       if (!e.message?.includes('409') && !e.message?.includes('already exists')) throw e;
     }
@@ -100,9 +107,16 @@ export async function connect(forceFresh = false) {
   }
 }
 
+function normalizePhone(phone: string): string {
+  const digits = phone.replace(/\D/g, '');
+  if (digits.length === 11 || digits.length === 10) return `55${digits}`;
+  if (digits.length === 13 && digits.startsWith('55')) return digits;
+  return digits;
+}
+
 export async function sendMessage(to: string, text: string) {
   if (connectionStatus !== 'connected') throw new Error('WhatsApp não conectado');
-  const number = to.replace(/\D/g, '');
+  const number = normalizePhone(to);
   const result = await apiFetch('POST', `/message/sendText/${INSTANCE_NAME}`, {
     number,
     text,
